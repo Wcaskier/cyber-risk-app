@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Risk Quantification</title>
+    <link rel="stylesheet" href="styles.css?v=1">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ── Auth Screen ─────────────────────────────────────────── -->
+<div id="authScreen" style="display:none">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">⚡</div>
+            <h1>Cyber Risk Quantification</h1>
+            <p>Probabilistic cyber risk analysis</p>
+        </div>
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="crq.switchAuthTab('signin')">Sign In</button>
+            <button class="auth-tab" onclick="crq.switchAuthTab('signup')">Sign Up</button>
+        </div>
+        <div id="authError" class="auth-error" style="display:none"></div>
+        <div class="auth-form">
+            <div class="form-group">
+                <label for="authEmail">Email</label>
+                <input type="email" id="authEmail" class="form-input" placeholder="you@company.com">
+            </div>
+            <div class="form-group">
+                <label for="authPassword">Password</label>
+                <input type="password" id="authPassword" class="form-input" placeholder="••••••••"
+                    onkeydown="if(event.key==='Enter') crq.handleAuth()">
+            </div>
+            <button class="btn-primary" style="width:100%;margin-top:8px;" onclick="crq.handleAuth()" id="authBtn">Sign In</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Main App ────────────────────────────────────────────── -->
+<div id="mainApp" style="display:none">
+    <header class="app-header">
+        <div class="header-left">
+            <span class="app-logo">⚡</span>
+            <span class="app-name">Cyber Risk Quantification</span>
+        </div>
+        <div class="header-right">
+            <span id="orgNameDisplay" class="org-name"></span>
+            <span id="userEmailDisplay" class="user-email"></span>
+            <button class="btn-signout" onclick="crq.signOut()">Sign Out</button>
+        </div>
+    </header>
+
+    <nav class="app-nav">
+        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="scenarios">Risk Events</button>
+        <button class="nav-btn" data-view="controlObjectives">Control Objectives</button>
+        <button class="nav-btn" data-view="controls">Controls</button>
+        <button class="nav-btn" data-view="mitre">MITRE Coverage</button>
+        <button class="nav-btn" data-view="reports">Reports</button>
+        <button class="nav-btn" data-view="settings">Settings</button>
+    </nav>
+
+    <main class="app-main">
+
+        <!-- Dashboard -->
+        <section id="dashboard" class="view active">
+            <div id="dashboardContent"></div>
+        </section>
+
+        <!-- Risk Events -->
+        <section id="scenarios" class="view">
+            <div class="section-header">
+                <div>
+                    <h2>Risk Events</h2>
+                    <p class="section-description">Define cyber risk events with annual probability and multi-category impact estimates.</p>
+                </div>
+                <button class="btn-primary" onclick="crq.openFullScreenForm('scenarios', null)">+ New Risk Event</button>
+            </div>
+            <div class="list-filter-bar">
+                <input type="text" id="scenariosSearch" class="form-input" placeholder="Search risk events..." oninput="crq.renderScenarios()">
+                <select id="scenarioFilterCategory" class="form-input" onchange="crq.renderScenarios()">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="scenarioFilterStatus" class="form-input" onchange="crq.renderScenarios()">
+                    <option value="">All Statuses</option>
+                    <option>Active</option><option>Draft</option><option>Under Review</option><option>Archived</option>
+                </select>
+            </div>
+            <div id="scenariosList"></div>
+        </section>
+
+        <!-- Control Objectives -->
+        <section id="controlObjectives" class="view">
+            <div class="section-header">
+                <div>
+                    <h2>Control Objectives</h2>
+                    <p class="section-description">Define what controls must achieve, linked to risk scenarios with max frequency and impact reduction.</p>
+                </div>
+                <button class="btn-primary" onclick="crq.openFullScreenForm('controlObjectives', null)">+ New Control Objective</button>
+            </div>
+            <div id="controlObjectivesList"></div>
+        </section>
+
+        <!-- Controls -->
+        <section id="controls" class="view">
+            <div class="section-header">
+                <div>
+                    <h2>Controls</h2>
+                    <p class="section-description">Controls are rated on design, scope, and operating effectiveness. These multiply to determine their contribution to risk reduction.</p>
+                </div>
+                <button class="btn-primary" onclick="crq.openFullScreenForm('controls', null)">+ New Control</button>
+            </div>
+            <div class="list-filter-bar">
+                <input type="text" id="controlsSearch" class="form-input" placeholder="Search controls..." oninput="crq.renderControls()">
+                <select id="controlFilterStatus" class="form-input" onchange="crq.renderControls()">
+                    <option value="">All Statuses</option>
+                    <option>Active</option><option>Draft</option><option>Under Review</option><option>Inactive</option>
+                </select>
+            </div>
+            <div id="controlsList"></div>
+        </section>
+
+        <!-- MITRE Coverage -->
+        <section id="mitre" class="view">
+            <div class="section-header">
+                <div>
+                    <h2>MITRE ATT&amp;CK Coverage</h2>
+                    <p class="section-description">Visualize which ATT&amp;CK techniques are addressed by your controls and where gaps exist.</p>
+                </div>
+            </div>
+            <div id="mitreCoverageContent"></div>
+        </section>
+
+        <!-- Reports -->
+        <section id="reports" class="view">
+            <div id="reportsContent"></div>
+        </section>
+
+        <!-- Settings -->
+        <section id="settings" class="view">
+            <div id="settingsContent"></div>
+        </section>
+
+        <!-- Detail Page View -->
+        <section id="detailPageView" class="view">
+            <div id="detailPageContent"></div>
+        </section>
+
+    </main>
+</div>
+
+<!-- ── Full Screen Form ────────────────────────────────────── -->
+<div id="fullScreenForm" class="full-screen-form">
+    <div class="full-screen-form-inner">
+        <div class="full-screen-form-header">
+            <button type="button" class="btn-back" onclick="crq.closeFullScreenForm()">&larr; Cancel</button>
+            <h2 id="fullScreenFormTitle">New Item</h2>
+            <span></span>
+        </div>
+        <form id="fullScreenFormContent" onsubmit="crq.handleSubmit(event)">
+            <div id="fullScreenFormFields"></div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="crq.closeFullScreenForm()">Cancel</button>
+                <button type="submit" class="btn-primary" id="fullScreenSubmitBtn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Delete Modal ────────────────────────────────────────── -->
+<div id="deleteModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3>Confirm Delete</h3>
+        <p id="deleteModalMessage">Are you sure?</p>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="crq.closeDeleteModal()">Cancel</button>
+            <button class="btn-delete" onclick="crq.confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>
