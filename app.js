@@ -1400,6 +1400,12 @@ class CRQApp {
             <button class="btn-primary" onclick="crq.saveSettings()">Save Settings</button>
         </div>
         <div class="settings-section">
+            <h3>Sample Data</h3>
+            <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:12px">Load a pre-built dataset with 5 risk events, 6 control objectives, and 9 controls to explore the app.</p>
+            <button class="btn-secondary" onclick="crq.loadSampleData()" style="border-color:var(--warning);color:var(--warning)">⚠ Load Sample Data (replaces all current data)</button>
+        </div>
+
+        <div class="settings-section">
             <h3>Database Setup</h3>
             <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:12px">Run the following SQL in your Supabase SQL editor to create the required table:</p>
             <pre style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;font-size:0.8rem;overflow-x:auto;white-space:pre-wrap">CREATE TABLE IF NOT EXISTS cyber_risk_data (
@@ -1412,6 +1418,237 @@ ALTER TABLE cyber_risk_data ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own data" ON cyber_risk_data
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);</pre>
         </div>`;
+    }
+
+    loadSampleData() {
+        if (!confirm('This will replace all current data with sample data. Continue?')) return;
+
+        const co1 = 'co-email-sec',    co2 = 'co-iam',       co3 = 'co-edr',
+              co4 = 'co-dlp',          co5 = 'co-backup',     co6 = 'co-vulnmgmt';
+
+        const c1  = 'ctrl-mfa',        c2  = 'ctrl-email-gw', c3  = 'ctrl-sat',
+              c4  = 'ctrl-edr',        c5  = 'ctrl-pam',      c6  = 'ctrl-backup',
+              c7  = 'ctrl-dlp',        c8  = 'ctrl-patch',    c9  = 'ctrl-netseg';
+
+        const s1  = 'sc-ransomware',   s2  = 'sc-databreach', s3  = 'sc-bec',
+              s4  = 'sc-supplychain',  s5  = 'sc-insider';
+
+        const now = new Date().toISOString();
+
+        this.data.scenarios = [
+            {
+                id: s1, name: 'Ransomware / Extortion Attack',
+                description: 'Threat actor gains access via phishing or exposed RDP, deploys ransomware across the environment, and demands payment. Includes double-extortion (data exfil before encryption).',
+                category: 'Ransomware / Extortion', status: 'Active',
+                freqLow: 0.05, freqML: 0.15, freqHigh: 0.30,
+                impact_response:    { low: 200000,  ml: 750000,   high: 2000000  },
+                impact_regulatory:  { low: 0,       ml: 100000,   high: 500000   },
+                impact_legal:       { low: 50000,   ml: 200000,   high: 1000000  },
+                impact_lostNewBiz:  { low: 100000,  ml: 500000,   high: 2000000  },
+                impact_lostExistBiz:{ low: 200000,  ml: 1000000,  high: 5000000  },
+                linkedCOs: [co1, co2, co3, co5],
+                mitreTechniques: ['T1566', 'T1566.001', 'T1566.002', 'T1078', 'T1486', 'T1490', 'T1489', 'T1562', 'T1562.001'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: s2, name: 'Data Breach / Exfiltration',
+                description: 'Attacker exfiltrates sensitive customer or employee PII/PHI. Includes notification costs, regulatory fines, and reputational damage from public disclosure.',
+                category: 'Data Breach / Exfiltration', status: 'Active',
+                freqLow: 0.08, freqML: 0.18, freqHigh: 0.35,
+                impact_response:    { low: 150000,  ml: 500000,   high: 1500000  },
+                impact_regulatory:  { low: 500000,  ml: 2000000,  high: 8000000  },
+                impact_legal:       { low: 200000,  ml: 1000000,  high: 5000000  },
+                impact_lostNewBiz:  { low: 500000,  ml: 2000000,  high: 8000000  },
+                impact_lostExistBiz:{ low: 1000000, ml: 3000000,  high: 10000000 },
+                linkedCOs: [co1, co2, co3, co4, co6],
+                mitreTechniques: ['T1566', 'T1078', 'T1078.002', 'T1003', 'T1003.001', 'T1041', 'T1567', 'T1560'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: s3, name: 'Business Email Compromise (BEC)',
+                description: 'Attacker compromises or impersonates executive email to redirect wire transfers or manipulate financial processes. High frequency, variable financial impact.',
+                category: 'Business Email Compromise', status: 'Active',
+                freqLow: 0.15, freqML: 0.30, freqHigh: 0.55,
+                impact_response:    { low: 25000,   ml: 100000,   high: 300000   },
+                impact_regulatory:  { low: 0,       ml: 0,        high: 100000   },
+                impact_legal:       { low: 50000,   ml: 200000,   high: 1000000  },
+                impact_lostNewBiz:  { low: 0,       ml: 100000,   high: 500000   },
+                impact_lostExistBiz:{ low: 50000,   ml: 500000,   high: 3000000  },
+                linkedCOs: [co1, co2],
+                mitreTechniques: ['T1566', 'T1566.002', 'T1078', 'T1534', 'T1586'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: s4, name: 'Third-Party / Supply Chain Compromise',
+                description: 'A trusted vendor or software supplier is compromised, providing attackers with privileged access to our environment. Difficult to detect due to legitimate credentials.',
+                category: 'Third-Party / Supply Chain', status: 'Active',
+                freqLow: 0.03, freqML: 0.08, freqHigh: 0.18,
+                impact_response:    { low: 300000,  ml: 1000000,  high: 3000000  },
+                impact_regulatory:  { low: 100000,  ml: 500000,   high: 2000000  },
+                impact_legal:       { low: 100000,  ml: 500000,   high: 3000000  },
+                impact_lostNewBiz:  { low: 200000,  ml: 1000000,  high: 5000000  },
+                impact_lostExistBiz:{ low: 500000,  ml: 2000000,  high: 8000000  },
+                linkedCOs: [co2, co3, co6],
+                mitreTechniques: ['T1195', 'T1195.001', 'T1195.002', 'T1078', 'T1078.004', 'T1505'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: s5, name: 'Malicious Insider / Data Theft',
+                description: 'A current or former employee intentionally exfiltrates sensitive data for financial gain, competitive advantage, or sabotage. Often bypasses perimeter controls.',
+                category: 'Insider Threat', status: 'Active',
+                freqLow: 0.04, freqML: 0.10, freqHigh: 0.20,
+                impact_response:    { low: 100000,  ml: 300000,   high: 800000   },
+                impact_regulatory:  { low: 200000,  ml: 800000,   high: 3000000  },
+                impact_legal:       { low: 200000,  ml: 1000000,  high: 4000000  },
+                impact_lostNewBiz:  { low: 100000,  ml: 500000,   high: 2000000  },
+                impact_lostExistBiz:{ low: 200000,  ml: 1000000,  high: 4000000  },
+                linkedCOs: [co2, co4, co3],
+                mitreTechniques: ['T1078', 'T1078.003', 'T1213', 'T1048', 'T1048.003', 'T1560'],
+                createdAt: now, updatedAt: now,
+            },
+        ];
+
+        this.data.controlObjectives = [
+            {
+                id: co1, name: 'Email Security & Anti-Phishing',
+                description: 'Prevent malicious emails from reaching users and reduce the likelihood users act on social engineering attempts.',
+                maxFreqReduction: 30, maxImpactReduction: 15,
+                mitreMitigations: ['M1049', 'M1021', 'M1017'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: co2, name: 'Identity & Access Management',
+                description: 'Ensure only authorized users can access systems and data, using strong authentication and least-privilege principles.',
+                maxFreqReduction: 25, maxImpactReduction: 25,
+                mitreMitigations: ['M1032', 'M1026', 'M1027', 'M1018'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: co3, name: 'Endpoint Detection & Response',
+                description: 'Detect and contain malicious activity on endpoints before attackers can achieve their objectives.',
+                maxFreqReduction: 20, maxImpactReduction: 35,
+                mitreMitigations: ['M1049', 'M1038', 'M1050'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: co4, name: 'Data Loss Prevention',
+                description: 'Detect and block unauthorized exfiltration of sensitive data across all channels.',
+                maxFreqReduction: 8, maxImpactReduction: 30,
+                mitreMitigations: ['M1057', 'M1037'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: co5, name: 'Backup & Recovery Capability',
+                description: 'Ensure critical data and systems can be restored rapidly to minimize business impact from a destructive attack.',
+                maxFreqReduction: 0, maxImpactReduction: 45,
+                mitreMitigations: ['M1053'],
+                createdAt: now, updatedAt: now,
+            },
+            {
+                id: co6, name: 'Vulnerability Management',
+                description: 'Identify and remediate exploitable vulnerabilities before attackers can leverage them for initial access or lateral movement.',
+                maxFreqReduction: 22, maxImpactReduction: 15,
+                mitreMitigations: ['M1016', 'M1050', 'M1048'],
+                createdAt: now, updatedAt: now,
+            },
+        ];
+
+        this.data.controls = [
+            {
+                id: c1, name: 'Multi-Factor Authentication (MFA)',
+                description: 'Phishing-resistant MFA enforced for all remote access, cloud services, and privileged accounts via hardware tokens and authenticator apps.',
+                status: 'Active', owner: 'Identity Team',
+                design: 90, scope: 82, operating: 78,
+                linkedCOs: [co2],
+                mitreTechniques: ['T1078', 'T1078.002', 'T1078.004', 'T1110', 'T1110.003', 'T1110.004', 'T1558'],
+                reviewDate: '2025-06-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c2, name: 'Email Gateway / Anti-Phishing Filter',
+                description: 'Cloud email security platform with sandboxing, link rewriting, impersonation protection, and DMARC enforcement.',
+                status: 'Active', owner: 'Security Operations',
+                design: 80, scope: 100, operating: 85,
+                linkedCOs: [co1],
+                mitreTechniques: ['T1566', 'T1566.001', 'T1566.002', 'T1566.003'],
+                reviewDate: '2025-04-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c3, name: 'Security Awareness Training',
+                description: 'Quarterly phishing simulations and annual security training for all employees. Metrics tracked by department.',
+                status: 'Active', owner: 'HR / Security',
+                design: 65, scope: 98, operating: 72,
+                linkedCOs: [co1],
+                mitreTechniques: ['T1566', 'T1566.001', 'T1566.002', 'T1566.004', 'T1204'],
+                reviewDate: '2025-09-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c4, name: 'Endpoint Detection & Response (EDR)',
+                description: 'Enterprise EDR deployed across all managed endpoints with 24/7 SOC monitoring and automated containment playbooks.',
+                status: 'Active', owner: 'Security Operations',
+                design: 88, scope: 87, operating: 80,
+                linkedCOs: [co3],
+                mitreTechniques: ['T1486', 'T1490', 'T1489', 'T1562', 'T1562.001', 'T1059', 'T1059.001', 'T1055'],
+                reviewDate: '2025-07-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c5, name: 'Privileged Access Management (PAM)',
+                description: 'PAM solution managing all privileged credentials with session recording, just-in-time access, and regular certification.',
+                status: 'Active', owner: 'Identity Team',
+                design: 85, scope: 70, operating: 68,
+                linkedCOs: [co2],
+                mitreTechniques: ['T1078', 'T1078.002', 'T1003', 'T1003.001', 'T1550'],
+                reviewDate: '2025-08-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c6, name: 'Backup & Immutable Recovery',
+                description: 'Daily encrypted backups to air-gapped immutable storage. Recovery tested quarterly with < 4hr RTO for critical systems.',
+                status: 'Active', owner: 'Infrastructure',
+                design: 92, scope: 80, operating: 76,
+                linkedCOs: [co5],
+                mitreTechniques: ['T1486', 'T1490', 'T1485'],
+                reviewDate: '2025-05-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c7, name: 'Data Loss Prevention (DLP)',
+                description: 'DLP policies enforced on email, cloud storage, and endpoints. Sensitive data classification applied to PII, PCI, and IP.',
+                status: 'Under Review', owner: 'Data Governance',
+                design: 72, scope: 75, operating: 60,
+                linkedCOs: [co4],
+                mitreTechniques: ['T1048', 'T1048.001', 'T1048.003', 'T1041', 'T1567'],
+                reviewDate: '2025-03-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c8, name: 'Vulnerability Scanning & Patch Management',
+                description: 'Weekly authenticated vulnerability scans with risk-based patching SLAs: Critical 7 days, High 30 days, Medium 90 days.',
+                status: 'Active', owner: 'IT Operations',
+                design: 78, scope: 88, operating: 72,
+                linkedCOs: [co6],
+                mitreTechniques: ['T1190', 'T1068', 'T1595', 'T1595.002'],
+                reviewDate: '2025-06-01', createdAt: now, updatedAt: now,
+            },
+            {
+                id: c9, name: 'Network Segmentation & Zero Trust',
+                description: 'Micro-segmentation applied to critical systems. ZTNA deployed for remote access replacing legacy VPN.',
+                status: 'Draft', owner: 'Network Engineering',
+                design: 80, scope: 55, operating: 70,
+                linkedCOs: [co3, co4],
+                mitreTechniques: ['T1021', 'T1021.001', 'T1021.002', 'T1570', 'T1090'],
+                reviewDate: '2025-12-01', createdAt: now, updatedAt: now,
+            },
+        ];
+
+        this.data.settings = {
+            orgName: 'Acme Corporation',
+            currency: 'USD',
+            simIterations: 10000,
+        };
+
+        this._simCache = {};
+        this.saveData().then(() => {
+            document.getElementById('orgNameDisplay').textContent = 'Acme Corporation';
+            this.showView('dashboard');
+            alert('Sample data loaded — 5 risk events, 6 control objectives, 9 controls.');
+        });
     }
 
     saveSettings() {
