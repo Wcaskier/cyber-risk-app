@@ -242,6 +242,49 @@ const MITRE_MITIGATIONS = [
     { id: 'M1016', name: 'Vulnerability Scanning' },
 ];
 
+// Technique → suggested mitigations mapping
+const TECH_MITIGATIONS_MAP = {
+    'T1595': ['M1016','M1056'],               'T1595.002': ['M1016'],
+    'T1566': ['M1049','M1021','M1017','M1031'],'T1566.001': ['M1049','M1021','M1017'],
+    'T1566.002': ['M1021','M1017','M1031'],   'T1566.003': ['M1017','M1021'],
+    'T1566.004': ['M1017'],
+    'T1078': ['M1032','M1026','M1027','M1018'],'T1078.001': ['M1027','M1026'],
+    'T1078.002': ['M1032','M1026'],           'T1078.003': ['M1032','M1026'],
+    'T1078.004': ['M1032','M1026','M1018'],
+    'T1190': ['M1016','M1050','M1048','M1026'],'T1195': ['M1013','M1016','M1045'],
+    'T1195.001': ['M1016','M1045'],           'T1195.002': ['M1013','M1045'],
+    'T1195.003': ['M1046'],                   'T1133': ['M1032','M1035'],
+    'T1059': ['M1038','M1045','M1026'],       'T1059.001': ['M1038','M1045'],
+    'T1059.003': ['M1038'],                   'T1204': ['M1017','M1038','M1049'],
+    'T1547': ['M1024','M1022'],               'T1547.001': ['M1024'],
+    'T1505': ['M1026','M1045'],
+    'T1068': ['M1050','M1026'],               'T1055': ['M1049','M1026'],
+    'T1055.001': ['M1049'],                   'T1055.012': ['M1049'],
+    'T1562': ['M1022','M1024','M1047'],       'T1562.001': ['M1022','M1024'],
+    'T1562.002': ['M1022','M1047'],           'T1562.004': ['M1022'],
+    'T1562.006': ['M1022','M1047'],
+    'T1110': ['M1032','M1027','M1036'],       'T1110.001': ['M1032','M1027'],
+    'T1110.003': ['M1032','M1027'],           'T1110.004': ['M1032','M1027'],
+    'T1003': ['M1043','M1025','M1026'],       'T1003.001': ['M1043','M1025'],
+    'T1003.003': ['M1026','M1047'],           'T1003.006': ['M1026','M1032'],
+    'T1558': ['M1026','M1032'],               'T1558.003': ['M1026'],
+    'T1021': ['M1035','M1030','M1032'],       'T1021.001': ['M1035','M1047','M1026'],
+    'T1021.002': ['M1035','M1026'],           'T1021.004': ['M1042','M1032'],
+    'T1550': ['M1026','M1032'],
+    'T1213': ['M1032','M1022','M1018'],       'T1560': ['M1047'],
+    'T1119': ['M1029','M1022'],
+    'T1071': ['M1031','M1037','M1020'],       'T1071.001': ['M1031','M1020'],
+    'T1071.004': ['M1037'],                   'T1572': ['M1031','M1037'],
+    'T1573': ['M1020'],                       'T1090': ['M1031','M1037'],
+    'T1048': ['M1037','M1031','M1020'],       'T1048.001': ['M1037','M1020'],
+    'T1048.003': ['M1037'],                   'T1041': ['M1031','M1037'],
+    'T1567': ['M1021','M1037'],               'T1537': ['M1032','M1022'],
+    'T1486': ['M1053','M1049'],               'T1490': ['M1053','M1047'],
+    'T1489': ['M1030','M1022'],               'T1485': ['M1053','M1047'],
+    'T1496': ['M1049'],                       'T1499': ['M1037','M1031'],
+    'T1657': ['M1026','M1047'],
+};
+
 // ══════════════════════════════════════════════════════════════
 // Monte Carlo Engine
 // ══════════════════════════════════════════════════════════════
@@ -620,7 +663,107 @@ class CRQApp {
                     </div>`;
                 }).join('')}
             </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div class="dash-section-title" style="margin:0">Most Impactful Actions</div>
+                <button class="btn-secondary" style="font-size:0.78rem;padding:5px 10px" onclick="crq._runTopActions()">↻ Recompute</button>
+            </div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:14px">
+                Simulated improvements — each action's estimated reduction in portfolio 90th percentile loss.
+            </div>
+            <div id="topActionsContent">
+                <div style="text-align:center;padding:24px">
+                    <div class="spinner"></div>
+                    <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:8px">Running what-if analysis…</div>
+                </div>
+            </div>
         </div>`;
+
+        // Kick off async after DOM paints
+        setTimeout(() => this._runTopActions(), 30);
+    }
+
+    _runTopActions() {
+        document.getElementById('topActionsContent').innerHTML = `
+            <div style="text-align:center;padding:24px">
+                <div class="spinner"></div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:8px">Running what-if analysis…</div>
+            </div>`;
+        // Yield to browser then compute
+        setTimeout(() => {
+            const actions = this._computeTopActions();
+            const el = document.getElementById('topActionsContent');
+            if (!el) return;
+            if (actions.length === 0) {
+                el.innerHTML = `<div class="empty-state">No active risk events or controls to analyze.</div>`;
+                return;
+            }
+            const maxDelta = actions[0].delta;
+            el.innerHTML = actions.map((a, i) => {
+                const barW = maxDelta > 0 ? (a.delta / maxDelta * 100).toFixed(0) : 0;
+                const dimLabel = { design: 'Design', scope: 'Scope', operating: 'Operating' }[a.dimension];
+                const dimColor = { design: 'var(--primary)', scope: 'var(--warning)', operating: 'var(--success)' }[a.dimension];
+                return `<div class="action-row" onclick="crq.showControlDetail('${a.controlId}')">
+                    <div class="action-rank">${i + 1}</div>
+                    <div class="action-body">
+                        <div class="action-title">
+                            <span>${esc(a.controlName)}</span>
+                            <span class="action-dim-badge" style="background:${dimColor}20;color:${dimColor}">${dimLabel} ${a.currentVal}% → ${a.newVal}%</span>
+                        </div>
+                        <div class="action-bar-wrap">
+                            <div class="action-bar" style="width:${barW}%;background:${dimColor}"></div>
+                        </div>
+                        <div class="action-meta">
+                            Reduces portfolio P90 by approx. <strong>${fmtDollar(a.delta, true)}</strong>
+                            · affects ${a.scenariosAffected} risk event${a.scenariosAffected !== 1 ? 's' : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }, 10);
+    }
+
+    _computeTopActions() {
+        const { scenarios, controlObjectives, controls } = this.data;
+        const BOOST = 20;
+        const ITER  = 1000;
+        const active = scenarios.filter(s => s.status === 'Active' || !s.status);
+        if (active.length === 0 || controls.length === 0) return [];
+
+        // Baseline portfolio P90
+        const baseP90 = active.map(s =>
+            runMonteCarlo(s, controlObjectives, controls, ITER).percentiles[90]
+        );
+        const totalBase = baseP90.reduce((a, b) => a + b, 0);
+
+        const actions = [];
+
+        controls.filter(c => c.status !== 'Inactive' && (c.linkedCOs||[]).length > 0).forEach(ctrl => {
+            ['design', 'scope', 'operating'].forEach(dim => {
+                const current = ctrl[dim] || 0;
+                if (current >= 98) return; // already near max
+
+                const newVal = Math.min(100, current + BOOST);
+                const modCtrls = controls.map(c => c.id === ctrl.id ? { ...c, [dim]: newVal } : c);
+
+                let totalNew = 0;
+                let scenariosAffected = 0;
+                active.forEach((s, i) => {
+                    const newP90 = runMonteCarlo(s, controlObjectives, modCtrls, ITER).percentiles[90];
+                    totalNew += newP90;
+                    if (newP90 < baseP90[i] - 1000) scenariosAffected++;
+                });
+
+                const delta = totalBase - totalNew;
+                if (delta > 1000) {
+                    actions.push({ controlId: ctrl.id, controlName: ctrl.name, dimension: dim, currentVal: current, newVal, delta, scenariosAffected });
+                }
+            });
+        });
+
+        return actions.sort((a, b) => b.delta - a.delta).slice(0, 8);
     }
 
     // ── Risk Scenarios ───────────────────────────────────────
@@ -1284,20 +1427,135 @@ class CRQApp {
                             : anySubInScope ? 'mn-gap mn-via-sub'
                             : anySubCovered ? 'mn-ctrl-only mn-via-sub'
                             : 'mn-none';
+                        const techClick = (parentDisplay.includes('mn-gap') || parentDisplay === 'mn-gap')
+                            ? `onclick="crq.showTechGapModal('${tech.id}')" style="cursor:pointer"` : '';
                         const subsHtml = subs.length > 0 ? `
                             <div class="mn-subtechs">
-                                ${subs.map(s => `
-                                <div class="mn-subtech ${getClass(s.id)}" title="${s.id}">
-                                    ${esc(s.name)}
-                                </div>`).join('')}
+                                ${subs.map(s => {
+                                    const sc = getClass(s.id);
+                                    const sc2 = sc === 'mn-gap' ? `onclick="crq.showTechGapModal('${s.id}')" style="cursor:pointer"` : '';
+                                    return `<div class="mn-subtech ${sc}" title="${s.id}" ${sc2}>${esc(s.name)}</div>`;
+                                }).join('')}
                             </div>` : '';
-                        return `<div class="mn-tech ${parentDisplay}">
+                        return `<div class="mn-tech ${parentDisplay}" ${techClick}>
                             <div class="mn-tech-name" title="${tech.id}">${esc(tech.name)}</div>
                             ${subsHtml}
                         </div>`;
                     }).join('')}
                 </div>`;
             }).join('')}
+        </div>`;
+    }
+
+    // ── MITRE Gap Modal ──────────────────────────────────────
+    showTechGapModal(techId) {
+        const tech = MITRE_TECHNIQUES.find(t => t.id === techId)
+                  || MITRE_SUBTECHNIQUES.find(t => t.id === techId);
+        if (!tech) return;
+
+        const tactic = MITRE_TACTICS.find(t => t.id === tech.tactic)
+                    || (tech.parentId ? MITRE_TACTICS.find(t => {
+                        const parent = MITRE_TECHNIQUES.find(x => x.id === tech.parentId);
+                        return parent && t.id === parent.tactic;
+                    }) : null);
+
+        const { scenarios, controls, controlObjectives } = this.data;
+
+        // Risk events that include this technique
+        const inEvents = scenarios.filter(s => (s.mitreTechniques||[]).includes(techId));
+
+        // Controls that already address this (shouldn't be many since it's a gap)
+        const addressing = controls.filter(c => (c.mitreTechniques||[]).includes(techId) && c.status !== 'Inactive');
+
+        // Controls that could be extended (address related techniques in same tactic)
+        const sameTacticTechs = tactic
+            ? MITRE_TECHNIQUES.filter(t => t.tactic === tactic.id).map(t => t.id)
+            : [];
+        const extendable = controls.filter(c =>
+            !addressing.includes(c) &&
+            c.status !== 'Inactive' &&
+            (c.mitreTechniques||[]).some(t => sameTacticTechs.includes(t))
+        );
+
+        // Suggested mitigations
+        const suggMitIds = TECH_MITIGATIONS_MAP[techId] || TECH_MITIGATIONS_MAP[tech.parentId] || [];
+        const suggMits = suggMitIds.map(id => MITRE_MITIGATIONS.find(m => m.id === id)).filter(Boolean);
+
+        // COs that already address these mitigations
+        const relevantCOs = controlObjectives.filter(co =>
+            (co.mitreMitigations||[]).some(m => suggMitIds.includes(m))
+        );
+
+        const mitreUrl = `https://attack.mitre.org/techniques/${techId.replace('.','/')}/`;
+
+        const el = document.getElementById('deleteModal');
+        el.className = 'modal-overlay open';
+        el.innerHTML = `
+        <div class="modal-card" style="max-width:560px;width:92%">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+                <div>
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--danger);margin-bottom:4px">
+                        Coverage Gap · ${esc(tactic?.name || '')}
+                    </div>
+                    <h3 style="font-size:1.1rem;margin:0">${esc(tech.name)}</h3>
+                    <a href="${mitreUrl}" target="_blank" style="font-size:0.78rem;color:var(--primary)">${techId} ↗</a>
+                </div>
+                <button class="btn-icon" onclick="crq.closeDeleteModal()" style="flex-shrink:0">✕</button>
+            </div>
+
+            ${inEvents.length > 0 ? `
+            <div class="gap-modal-section">
+                <div class="gap-modal-label">Appears in ${inEvents.length} Risk Event${inEvents.length>1?'s':''}</div>
+                ${inEvents.map(s => `<div class="gap-modal-item">
+                    <span style="font-size:0.85rem;font-weight:500">${esc(s.name)}</span>
+                    ${statusBadge(s.status)}
+                </div>`).join('')}
+            </div>` : ''}
+
+            <div class="gap-modal-section">
+                <div class="gap-modal-label">Recommended MITRE Mitigations</div>
+                ${suggMits.length === 0 ? `<div style="font-size:0.82rem;color:var(--text-secondary)">No specific mitigations mapped</div>` :
+                suggMits.map(m => {
+                    const hasCO = controlObjectives.some(co => (co.mitreMitigations||[]).includes(m.id));
+                    return `<div class="gap-modal-item">
+                        <div>
+                            <span style="font-size:0.85rem;font-weight:500">${esc(m.name)}</span>
+                            <span style="font-size:0.72rem;color:var(--text-tertiary);margin-left:4px">${m.id}</span>
+                        </div>
+                        ${hasCO ? `<span style="font-size:0.72rem;color:var(--success);font-weight:600">CO exists ✓</span>`
+                                 : `<span style="font-size:0.72rem;color:var(--warning);font-weight:600">No CO</span>`}
+                    </div>`;
+                }).join('')}
+            </div>
+
+            ${relevantCOs.length > 0 ? `
+            <div class="gap-modal-section">
+                <div class="gap-modal-label">Existing Control Objectives to Extend</div>
+                ${relevantCOs.map(co => {
+                    const eff = calcControlEffectiveness(co.id, controls);
+                    return `<div class="gap-modal-item">
+                        <span style="font-size:0.85rem;font-weight:500;cursor:pointer" onclick="crq.closeDeleteModal();crq.showCODetail('${co.id}')">${esc(co.name)}</span>
+                        <span style="font-size:0.78rem;color:var(--text-secondary)">${(eff*100).toFixed(0)}% achieved</span>
+                    </div>`;
+                }).join('')}
+            </div>` : ''}
+
+            ${extendable.length > 0 ? `
+            <div class="gap-modal-section">
+                <div class="gap-modal-label">Controls That Could Cover This Technique</div>
+                ${extendable.slice(0,4).map(c => {
+                    const eff = (c.design||0)/100*(c.scope||0)/100*(c.operating||0)/100;
+                    return `<div class="gap-modal-item">
+                        <span style="font-size:0.85rem;font-weight:500;cursor:pointer" onclick="crq.closeDeleteModal();crq.showControlDetail('${c.id}')">${esc(c.name)}</span>
+                        <span style="font-size:0.78rem;color:var(--text-secondary)">${(eff*100).toFixed(0)}% effective</span>
+                    </div>`;
+                }).join('')}
+            </div>` : ''}
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                <button class="btn-secondary" onclick="crq.closeDeleteModal()">Close</button>
+                <button class="btn-primary" onclick="crq.closeDeleteModal();crq.openFullScreenForm('controlObjectives',null)">+ New Control Objective</button>
+            </div>
         </div>`;
     }
 
